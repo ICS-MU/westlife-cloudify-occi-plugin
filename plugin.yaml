@@ -1,9 +1,9 @@
 plugins:
   occi:
     executor: central_deployment_agent
-    source: '...'
+    source: https://github.com/vholer/cloudify-occi-plugin-experimental/archive/master.zip
     package_name: cloudify-occi-plugin
-    package_version: '1.0'
+    package_version: '1.0.0'
 
 data_types:
   cloudify.datatypes.occi.Config:
