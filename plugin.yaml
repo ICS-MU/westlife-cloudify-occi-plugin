@@ -1,0 +1,162 @@
+plugins:
+  occi:
+    executor: central_deployment_agent
+    source: '...'
+    package_name: cloudify-occi-plugin
+    package_version: '1.0'
+
+data_types:
+  cloudify.datatypes.occi.Config:
+    properties:
+      endpoint:
+        description: >
+          Remote OCCI server endpoint.
+        type: string
+        required: true
+      auth:
+        description: >
+          Authentication method (x509, token, basic, digest or none)
+        type: string
+        default: 'none'
+        required: true
+      username:
+        description: >
+          Username for basic or digest authentication
+        type: string
+        required: false
+      password:
+        description: >
+          Password for basic, digest and x509 authentication
+        type: string
+        required: false
+      user_cred:
+        description: >
+          Path to user's x509 credentials
+        type: string
+        required: false
+      ca_path:
+        description: >
+          Path to CA certificates directory
+        type: string
+        required: false
+      voms:
+        description: >
+          Using VOMS credentials; modifies behavior of the X509 auth module
+        type: boolean
+        default: False
+        required: false
+
+  cloudify.datatypes.occi.compute.ServerConfig:
+    properties:
+      os_tpl:
+        description: >
+          OS Template.
+        type: string
+        required: true
+      resource_tpl:
+        description: >
+          Hardware resource template.
+        type: string
+        required: true
+      cpu:
+        description: >
+          CPU cores (obsolete).
+        type: integer
+        required: false
+      memory:
+        description: >
+          Memory size (obsolete).
+        type: integer
+        required: false
+
+  cloudify.datatypes.occi.compute.CloudConfig:
+    properties:
+      username:
+        description: >
+          Remote SSH user name.
+        type: string
+        required: true
+      public_key:
+        description: >
+          Remote SSH user's public key.
+        type: string
+        required: true
+      data:
+        description: >
+          Custom cloud-init data as dictionary.
+        default: {}
+        required: false
+
+relationships:
+  cloudify.occi.relationships.volume_attached_to_server:
+    derived_from: cloudify.relationships.connected_to
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        establish:
+          implementation: occi.cloudify_occi_plugin.tasks.attach_volume
+        unlink:
+          implementation: occi.cloudify_occi_plugin.tasks.detach_volume
+
+node_types:
+  cloudify.occi.nodes.Server:
+    derived_from: cloudify.nodes.Compute
+    properties:
+      name:
+        description: >
+          Name of the resource.
+        type: string
+        required: false
+      resource_config:
+        description: >
+          A dictionary of server configure (OS and hardware profile).
+        type: cloudify.datatypes.occi.compute.ServerConfig
+        required: true
+      occi_config:
+        description: >
+          A dictionary of values to pass to authenticate with the OCCI API
+        type: cloudify.datatypes.occi.Config
+        required: true
+      cloud_config:
+        description: >
+          A dictionary of cloud-init configuration values.
+        type: cloudify.datatypes.occi.compute.CloudConfig
+        required: false
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: occi.cloudify_occi_plugin.tasks.create
+        start:
+          implementation: occi.cloudify_occi_plugin.tasks.start
+          inputs:
+            start_retry_interval:
+              description: >
+                Polling interval until the server is active in seconds
+              type: integer
+              default: 30
+        delete:
+          implementation: occi.cloudify_occi_plugin.tasks.delete
+
+  cloudify.occi.nodes.Volume:
+    derived_from: cloudify.nodes.Volume
+    properties:
+      name:
+        description: >
+          Name of the resource.
+        type: string
+        required: false
+      size:
+        description: >
+          Volume size in MB.
+        type: integer
+        required: true
+      occi_config:
+        description: >
+          A dictionary of values to pass to authenticate with the OCCI API
+        type: cloudify.datatypes.occi.Config
+        required: true
+    interfaces:
+      cloudify.interfaces.lifecycle:
+        create:
+          implementation: occi.cloudify_occi_plugin.tasks.create_volume
+        delete:
+          implementation: occi.cloudify_occi_plugin.tasks.delete
