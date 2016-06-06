@@ -44,6 +44,11 @@ class Client(object):
             '--resource', target,
             '--link', source])
 
+    def unlink(self, source, target):
+        return self.runcli(['--action', 'unlink',
+            '--resource', target,
+            '--link', source])
+
     def create_volume(self, title, size):
         a = [ 'occi.core.title=%s' % title]
         a += [ 'occi.storage.size=%f' % float(size) ]

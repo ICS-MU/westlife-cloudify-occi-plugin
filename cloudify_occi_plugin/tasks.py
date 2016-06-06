@@ -5,6 +5,13 @@ from cloudify.exceptions import NonRecoverableError, RecoverableError
 from cloudify.decorators import operation
 from cloudify_occi_plugin.provider.cli import Client
 from functools import wraps
+from time import sleep
+
+RUNTIME_PROPERTIES = [
+    'ip', 'networks',
+    'user', 'port', 'password', 'key',
+    'occi_resource_id', 'occi_resource_url', 'occi_resource_title',
+]
 
 def with_client(f):
     @wraps(f)
@@ -54,8 +61,8 @@ def create(client, **kwargs):
 
     try:
         url = client.create(name, os_tpl, resource_tpl, cc)
-        ctx.instance.runtime_properties['OCCI_URL'] = url
-        ctx.instance.runtime_properties['OCCI_TITLE'] = name 
+        ctx.instance.runtime_properties['occi_resource_url'] = url
+        ctx.instance.runtime_properties['occi_resource_title'] = name 
     except:
         raise
 
@@ -63,7 +70,7 @@ def create(client, **kwargs):
 @with_client
 def start(client, start_retry_interval, **kwargs):
     ctx.logger.info('Starting node')
-    url = ctx.instance.runtime_properties['OCCI_URL']
+    url = ctx.instance.runtime_properties['occi_resource_url']
     resp = client.describe(url)
     state = resp[0]['attributes']['occi']['compute']['state']
     if (state != 'active'):
@@ -71,21 +78,48 @@ def start(client, start_retry_interval, **kwargs):
             message='Waiting for server to start (state: %s)' % (state,),
             retry_after=start_retry_interval)
 
+    # get instance IP addresses
     ips = []
     for link in resp[0]['links']:
         if link['rel'] == 'http://schemas.ogf.org/occi/infrastructure#network':
             ips.append(link['attributes']['occi']['networkinterface']['address'])
 
-    ctx.instance.runtime_properties['ips'] = ips
+    # properties
+    ctx.instance.runtime_properties['ip'] = ips[0]
+    ctx.instance.runtime_properties['networks'] = ips
+
+@operation
+@with_client
+def stop(client, **kwargs):
+    ctx.logger.info('Stopping')
+    url = ctx.instance.runtime_properties.get('occi_resource_url')
+    if not url:
+        raise Exception('OCCI_URL expected')
+
+    # stop active instance
+    desc = client.describe(url)
+    state = desc[0]['attributes']['occi']['compute']['state']
+    if (state == 'active'):
+        client.trigger(url, 'stop')
+        desc = client.describe(url)
+        state = desc[0]['attributes']['occi']['compute']['state']
+
+    # check again for suspended instance or retry
+    if (state != 'suspended'):
+        return ctx.operation.retry(
+            message='Waiting for server to stop (state: %s)' % (state,))
 
 @operation
 @with_client
 def delete(client, **kwargs):
     ctx.logger.info('Deleting')
-    url = ctx.instance.runtime_properties.get('OCCI_URL')
+    url = ctx.instance.runtime_properties.get('occi_resource_url')
     if url:
-        client.delete(url)
-        delete_runtime_properties(ctx)
+        try:
+            desc = client.describe(url)
+            client.delete(url)
+        finally:
+            delete_runtime_properties(ctx)
 
 @operation
 @with_client
@@ -97,23 +131,44 @@ def create_volume(client, **kwargs):
         name = 'cfy-disk-%s' % ctx.instance.id
 
     url = client.create_volume(name, size)
-    ctx.instance.runtime_properties['OCCI_URL'] = url
-    ctx.instance.runtime_properties['OCCI_TITLE'] = name 
+    ctx.instance.runtime_properties['occi_resource_url'] = url
+    ctx.instance.runtime_properties['occi_resource_title'] = name 
+
+@operation
+@with_client
+def start_volume(client, start_retry_interval, **kwargs):
+    url = ctx.instance.runtime_properties['occi_resource_url']
+    desc = client.describe(url)
+    state = desc[0]['attributes']['occi']['storage']['state']
+    if (state != 'online'):
+        return ctx.operation.retry(
+            message='Waiting for volume to start (state: %s)' % (state,),
+            retry_after=start_retry_interval)
 
 @operation
 @with_client
 def attach_volume(client, **kwargs):
     ctx.logger.info('Attaching volume')
-    server_url = ctx.target.instance.runtime_properties['OCCI_URL']
-    volume_url = ctx.source.instance.runtime_properties['OCCI_URL']
+    server_url = ctx.target.instance.runtime_properties['occi_resource_url']
+    volume_url = ctx.source.instance.runtime_properties['occi_resource_url']
     print client.link(volume_url, server_url)
+    # TODO: pockat na attach, zaktualizovat device
 
 @operation
 @with_client
 def detach_volume(client, **kwargs):
     ctx.logger.info('Detaching volume')
+    server_url = ctx.target.instance.runtime_properties['occi_resource_url']
+    volume_url = ctx.source.instance.runtime_properties['occi_resource_url']
+    raise Exception('Not supported')
+#    desc = client.describe(url)
+#    state = desc[0]['attributes']['occi']['storage']['state']
+#    if (state != 'online'):
+#        return ctx.operation.retry(
+#            message='Waiting for volume to detach (state: %s)' % (state,),
+#            retry_after=start_retry_interval)
 
 def delete_runtime_properties(ctx):
-    for key in ctx.instance.runtime_properties.keys():
-        if 'OCCI_' in key:
+    for key in RUNTIME_PROPERTIES:
+        if key in ctx.instance.runtime_properties:
             del ctx.instance.runtime_properties[key]

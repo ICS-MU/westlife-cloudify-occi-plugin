@@ -3,7 +3,7 @@ plugins:
     executor: central_deployment_agent
     source: https://github.com/vholer/cloudify-occi-plugin-experimental/archive/master.zip
     package_name: cloudify-occi-plugin
-    package_version: '1.0.0'
+    package_version: '0.0.1'
 
 data_types:
   cloudify.datatypes.occi.Config:
@@ -133,6 +133,8 @@ node_types:
                 Polling interval until the server is active in seconds
               type: integer
               default: 30
+        stop:
+          implementation: occi.cloudify_occi_plugin.tasks.stop
         delete:
           implementation: occi.cloudify_occi_plugin.tasks.delete
 
@@ -146,7 +148,7 @@ node_types:
         required: false
       size:
         description: >
-          Volume size in MB.
+          Volume size in GB.
         type: integer
         required: true
       occi_config:
@@ -158,5 +160,13 @@ node_types:
       cloudify.interfaces.lifecycle:
         create:
           implementation: occi.cloudify_occi_plugin.tasks.create_volume
+        start:
+          implementation: occi.cloudify_occi_plugin.tasks.start_volume
+          inputs:
+            start_retry_interval:
+              description: >
+                Polling interval until the volume is online in seconds
+              type: integer
+              default: 30
         delete:
           implementation: occi.cloudify_occi_plugin.tasks.delete
