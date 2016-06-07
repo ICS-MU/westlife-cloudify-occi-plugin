@@ -7,7 +7,7 @@ from tempfile import NamedTemporaryFile
 
 class Client(object):
     def __init__(self, config):
-        self._cmd = 'occi'
+        self._cmd = '/usr/local/bin/occi' #TODO
         self._config = config
         #self.runcli([u'--version'])
 
