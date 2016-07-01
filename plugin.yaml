@@ -3,7 +3,7 @@ plugins:
     executor: central_deployment_agent
     source: https://github.com/vholer/cloudify-occi-plugin-experimental/archive/master.zip
     package_name: cloudify-occi-plugin
-    package_version: '0.0.2'
+    package_version: '0.0.3'
 
 data_types:
   cloudify.datatypes.occi.Config:
