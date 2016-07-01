@@ -5,11 +5,12 @@ from cloudify import ctx
 from yaml import dump
 from tempfile import NamedTemporaryFile
 
+
 class Client(object):
     def __init__(self, config):
-        self._cmd = '/usr/local/bin/occi' #TODO
+        self._cmd = '/usr/local/bin/occi'  # TODO
         self._config = config
-        #self.runcli([u'--version'])
+#        self.runcli([u'--version'])
 
     def create(self, name, os_tpl, resource_tpl, cc={}):
         m = ['os_tpl#%s' % os_tpl, 'resource_tpl#%s' % resource_tpl]
@@ -21,7 +22,7 @@ class Client(object):
                     '--action', 'create',
                     '--resource', 'compute',
                     '--context', "user_data=file://%s" % f
-                ], mixins = m, attrs = a)
+                ], mixins=m, attrs=a)
         finally:
             if os.path.isfile(f):
                 os.unlink(f)
@@ -36,23 +37,24 @@ class Client(object):
 
     def trigger(self, resource, action):
         return self.runcli(['--action', 'trigger',
-            '--trigger-action', action,
-            '--resource', resource])
+                            '--trigger-action', action,
+                            '--resource', resource])
 
     def link(self, source, target):
         return self.runcli(['--action', 'link',
-            '--resource', target,
-            '--link', source])
+                            '--resource', target,
+                            '--link', source])
 
     def unlink(self, source, target):
         return self.runcli(['--action', 'unlink',
-            '--resource', target,
-            '--link', source])
+                            '--resource', target,
+                            '--link', source])
 
     def create_volume(self, title, size):
-        a = [ 'occi.core.title=%s' % title]
-        a += [ 'occi.storage.size=%f' % float(size) ]
-        url = self.runcli(['--action', 'create', '--resource', 'storage'], attrs = a)
+        a = ['occi.core.title=%s' % title]
+        a += ['occi.storage.size=%f' % float(size)]
+        url = self.runcli(['--action', 'create', '--resource', 'storage'],
+                          attrs=a)
         return url
 
     def runcli(self, args=[], mixins=[], attrs=[]):
@@ -114,7 +116,7 @@ class Client(object):
 
     def gen_cloud_init_data(self, user='cloudadm', lock_passwd=True,
                             public_keys=[], data={}):
-        d = dict(users = [{
+        d = dict(users=[{
             'name': user,
             'sudo': 'ALL=(ALL) NOPASSWD:ALL',
             'lock-passwd': lock_passwd,
