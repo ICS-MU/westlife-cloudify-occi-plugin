@@ -3,7 +3,7 @@ plugins:
     executor: central_deployment_agent
     source: https://github.com/vholer/cloudify-occi-plugin-experimental/archive/master.zip
     package_name: cloudify-occi-plugin
-    package_version: '0.0.3'
+    package_version: '0.0.4'
 
 data_types:
   cloudify.datatypes.occi.Config:
@@ -90,6 +90,14 @@ data_types:
 relationships:
   cloudify.occi.relationships.volume_attached_to_server:
     derived_from: cloudify.relationships.connected_to
+    target_interfaces:
+      cloudify.interfaces.relationship_lifecycle:
+        establish:
+          implementation: occi.cloudify_occi_plugin.tasks.attach_volume
+        unlink:
+          implementation: occi.cloudify_occi_plugin.tasks.detach_volume
+  cloudify.occi.relationships.volume_contained_in_server:
+    derived_from: cloudify.relationships.contained_in
     target_interfaces:
       cloudify.interfaces.relationship_lifecycle:
         establish:
