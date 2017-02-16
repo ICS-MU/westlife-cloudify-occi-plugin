@@ -23,6 +23,7 @@ def create(client, **kwargs):
     resource_config = ctx.node.properties['resource_config']
     os_tpl = resource_config['os_tpl']
     resource_tpl = resource_config['resource_tpl']
+    availability_zone = resource_config['availability_zone']
     cloud_config = ctx.node.properties.get('cloud_config', dict())
     # TODO: cpu, memory
 
@@ -33,7 +34,7 @@ def create(client, **kwargs):
         data=cloud_config.get('data'))
 
     try:
-        url = client.create(name, os_tpl, resource_tpl, cc)
+        url = client.create(name, os_tpl, resource_tpl, availability_zone, cc)
         ctx.instance.runtime_properties['occi_resource_url'] = url
         ctx.instance.runtime_properties['occi_resource_title'] = name
     except:
@@ -104,8 +105,9 @@ def create_volume(client, **kwargs):
     name = ctx.node.properties.get('name')
     if not name:
         name = 'cfy-disk-%s' % ctx.instance.id
+    availability_zone = ctx.node.properties.get('availability_zone')
 
-    url = client.create_volume(name, size)
+    url = client.create_volume(name, size, availability_zone)
     ctx.instance.runtime_properties['occi_resource_url'] = url
     ctx.instance.runtime_properties['occi_resource_title'] = name
 
