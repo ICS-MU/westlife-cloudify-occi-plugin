@@ -23,7 +23,7 @@ def create(client, **kwargs):
     resource_config = ctx.node.properties['resource_config']
     os_tpl = resource_config['os_tpl']
     resource_tpl = resource_config['resource_tpl']
-    availability_zone = resource_config['availability_zone']
+    availability_zone = resource_config.get('availability_zone')
     cloud_config = ctx.node.properties.get('cloud_config', dict())
     # TODO: cpu, memory
 

@@ -12,10 +12,10 @@ class Client(object):
         self._config = config
 #        self.runcli([u'--version'])
 
-    def create(self, name, os_tpl, resource_tpl, availability_zone=None, cc={}):
+    def create(self, name, os_tpl, resource_tpl, az=None, cc={}):
         m = ['os_tpl#%s' % os_tpl, 'resource_tpl#%s' % resource_tpl]
-        if availability_zone:
-            m += ['availability_zone#%s' % availability_zone]
+        if az:
+            m += ['availability_zone#%s' % az]
         a = ['occi.core.title=%s' % name]
         f = self.cloud_init(cc, intofile=True)
 
@@ -52,12 +52,12 @@ class Client(object):
                             '--resource', target,
                             '--link', source])
 
-    def create_volume(self, title, size, availability_zone=None):
+    def create_volume(self, title, size, az=None):
         a = ['occi.core.title=%s' % title]
         a += ['occi.storage.size=%f' % float(size)]
         m = []
-        if availability_zone:
-            m += ['availability_zone#%s' % availability_zone]
+        if az:
+            m += ['availability_zone#%s' % az]
         url = self.runcli([
                 '--action', 'create',
                 '--resource', 'storage'
