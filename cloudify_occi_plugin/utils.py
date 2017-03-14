@@ -47,6 +47,8 @@ def get_state(data):
         return data['attributes']['occi']['compute']['state']
     elif kind.endswith('#storage'):
         return data['attributes']['occi']['storage']['state']
+    elif kind.endswith('#storagelink'):
+        return data['attributes']['occi']['storagelink']['state']
     else:
         raise Exception('Unknown kind '+kind)
 
