@@ -12,5 +12,6 @@ setuptools.setup(
     description='Cloudify OCCI plugin',
     install_requires=[
         'cloudify-plugins-common>=3.3.1',
+        'PyYAML>=3.10'
     ],
 )
