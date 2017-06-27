@@ -129,9 +129,9 @@ def attach_volume(client, attach_retry_interval, **kwargs):
 
     url = ctx.source.instance.runtime_properties.get('occi_link_url')
     if not url:
-        server_url = ctx.target.instance.runtime_properties['occi_resource_url']
-        volume_url = ctx.source.instance.runtime_properties['occi_resource_url']
-        url = client.link(volume_url, server_url)
+        srv_url = ctx.target.instance.runtime_properties['occi_resource_url']
+        vol_url = ctx.source.instance.runtime_properties['occi_resource_url']
+        url = client.link(vol_url, srv_url)
         ctx.source.instance.runtime_properties['occi_link_url'] = url
 
     desc = client.describe(url)
