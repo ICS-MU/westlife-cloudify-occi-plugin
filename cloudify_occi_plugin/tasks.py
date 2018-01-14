@@ -25,6 +25,7 @@ def create(client, **kwargs):
     resource_tpl = resource_config['resource_tpl']
     availability_zone = resource_config.get('availability_zone')
     network = resource_config.get('network')
+    network_pool = resource_config.get('network_pool')
     cloud_config = ctx.node.properties.get('cloud_config', dict())
     # TODO: cpu, memory
 
@@ -44,7 +45,12 @@ def create(client, **kwargs):
     # link network
     try:
         if network:
-            net_url = client.link(network, url)
+            if network_pool:
+                mixins = [network_pool]
+            else:
+                mixins = []
+
+            net_url = client.link(network, url, mixins)
             ctx.instance.runtime_properties['occi_network_link_url'] = net_url
     except Exception:
         client.delete(url)

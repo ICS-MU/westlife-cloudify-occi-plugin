@@ -42,15 +42,19 @@ class Client(object):
                             '--trigger-action', action,
                             '--resource', resource])
 
-    def link(self, source, target):
-        return self.runcli(['--action', 'link',
-                            '--resource', target,
-                            '--link', source])
+    def link(self, source, target, mixins=[]):
+        return self.runcli([
+                '--action', 'link',
+                '--resource', target,
+                '--link', source
+            ], mixins=mixins)
 
-    def unlink(self, source, target):
-        return self.runcli(['--action', 'unlink',
-                            '--resource', target,
-                            '--link', source])
+    def unlink(self, source, target, mixins=[]):
+        return self.runcli([
+                '--action', 'unlink',
+                '--resource', target,
+                '--link', source
+            ], mixins=mixins)
 
     def create_volume(self, title, size, az=None):
         a = ['occi.core.title=%s' % title]
