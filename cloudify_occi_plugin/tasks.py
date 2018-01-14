@@ -24,6 +24,7 @@ def create(client, **kwargs):
     os_tpl = resource_config['os_tpl']
     resource_tpl = resource_config['resource_tpl']
     availability_zone = resource_config.get('availability_zone')
+    network = resource_config.get('network')
     cloud_config = ctx.node.properties.get('cloud_config', dict())
     # TODO: cpu, memory
 
@@ -40,6 +41,14 @@ def create(client, **kwargs):
     except:
         raise
 
+    # link network
+    try:
+        if network:
+            network_url = client.link(network, url)
+            ctx.instance.runtime_properties['occi_network_link_url'] = network_url
+    except:
+        client.delete(url)
+        raise
 
 @operation
 @with_client
@@ -55,6 +64,12 @@ def start(client, start_retry_interval, **kwargs):
 
     # get instance IP addresses
     ips = []
+
+    for link in res['links']:
+        if link['rel'].endswith('#ipreservation'):
+            ip = link['attributes']['occi']['networkinterface']['address']
+            ips.append(ip)
+
     for link in res['links']:
         if link['rel'].endswith('#network'):
             ip = link['attributes']['occi']['networkinterface']['address']
@@ -73,6 +88,11 @@ def stop(client, **kwargs):
     if not url:
         raise Exception('OCCI_URL expected')
 
+## VH: on savba.sk deletes whole VM, not just the assigned network
+#    network_url = ctx.instance.runtime_properties.get('occi_network_link_url')
+#    if network_url:
+#        client.delete(network_url)
+
     # stop active instance
     state = get_instance_state(ctx, client)
     if (state == 'active'):
@@ -80,7 +100,7 @@ def stop(client, **kwargs):
         state = get_instance_state(ctx, client)
 
     # check again for suspended instance or retry
-    if (state != 'suspended'):
+    if (not state in ['suspended', 'inactive']):
         return ctx.operation.retry(
             message='Waiting for server to stop (state: %s)' % (state,))
 
