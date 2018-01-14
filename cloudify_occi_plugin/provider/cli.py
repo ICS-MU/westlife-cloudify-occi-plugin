@@ -1,6 +1,8 @@
 import json
+import math
 import os
 import subprocess
+
 from cloudify import ctx
 from yaml import dump
 from tempfile import NamedTemporaryFile
@@ -58,7 +60,7 @@ class Client(object):
 
     def create_volume(self, title, size, az=None):
         a = ['occi.core.title=%s' % title]
-        a += ['occi.storage.size=%f' % float(size)]
+        a += ['occi.storage.size=%i' % math.ceil(size)]
         m = []
         if az:
             m += ['availability_zone#%s' % az]
