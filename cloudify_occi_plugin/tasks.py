@@ -38,17 +38,18 @@ def create(client, **kwargs):
         url = client.create(name, os_tpl, resource_tpl, availability_zone, cc)
         ctx.instance.runtime_properties['occi_resource_url'] = url
         ctx.instance.runtime_properties['occi_resource_title'] = name
-    except:
+    except Exception:
         raise
 
     # link network
     try:
         if network:
-            network_url = client.link(network, url)
-            ctx.instance.runtime_properties['occi_network_link_url'] = network_url
-    except:
+            net_url = client.link(network, url)
+            ctx.instance.runtime_properties['occi_network_link_url'] = net_url
+    except Exception:
         client.delete(url)
         raise
+
 
 @operation
 @with_client
@@ -88,10 +89,10 @@ def stop(client, **kwargs):
     if not url:
         raise Exception('OCCI_URL expected')
 
-## VH: on savba.sk deletes whole VM, not just the assigned network
-#    network_url = ctx.instance.runtime_properties.get('occi_network_link_url')
-#    if network_url:
-#        client.delete(network_url)
+# VH: on savba.sk deletes whole VM, not just the assigned network
+#    net_url = ctx.instance.runtime_properties.get('occi_network_link_url')
+#    if net_url:
+#        client.delete(net_url)
 
     # stop active instance
     state = get_instance_state(ctx, client)
@@ -100,7 +101,7 @@ def stop(client, **kwargs):
         state = get_instance_state(ctx, client)
 
     # check again for suspended instance or retry
-    if (not state in ['suspended', 'inactive']):
+    if state not in ['suspended', 'inactive']:
         return ctx.operation.retry(
             message='Waiting for server to stop (state: %s)' % (state,))
 
@@ -181,7 +182,7 @@ def detach_volume(client, detach_retry_interval, **kwargs):
         return ctx.operation.retry(
             message='Waiting for volume to detach (state: %s)' % (state,),
             retry_after=detach_retry_interval)
-    except:
+    except Exception:
         if 'occi_link_url' in ctx.source.instance.runtime_properties:
             del ctx.source.instance.runtime_properties['occi_link_url']
         if 'device' in ctx.source.instance.runtime_properties:
