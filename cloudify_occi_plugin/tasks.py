@@ -114,13 +114,23 @@ def stop(client, **kwargs):
 
 @operation
 @with_client
-def delete(client, **kwargs):
+def delete(client, delete_retry_interval=30, **kwargs):
     ctx.logger.info('Deleting')
     url = ctx.instance.runtime_properties.get('occi_resource_url')
     if url:
         try:
             client.delete(url)
-        finally:
+        except Exception:
+            pass
+
+        # check the resource is deleted
+        try:
+            client.describe(url)
+
+            return ctx.operation.retry(
+                message='Waiting for resource to delete',
+                retry_after=delete_retry_interval)
+        except Exception:
             delete_runtime_properties(ctx)
 
 

@@ -1,9 +1,9 @@
 plugins:
   occi:
     executor: central_deployment_agent
-    source: https://github.com/ICS-MU/westlife-cloudify-occi-plugin/archive/0.0.14.zip
+    source: https://github.com/ICS-MU/westlife-cloudify-occi-plugin/archive/0.0.15.zip
     package_name: cloudify-occi-plugin
-    package_version: '0.0.14'
+    package_version: '0.0.15'
 
 data_types:
   cloudify.datatypes.occi.Config:
@@ -184,6 +184,12 @@ node_types:
           implementation: occi.cloudify_occi_plugin.tasks.stop
         delete:
           implementation: occi.cloudify_occi_plugin.tasks.delete
+          inputs:
+            delete_retry_interval:
+              description: >
+                Polling interval until the server is deleted
+              type: integer
+              default: 30
 
   cloudify.occi.nodes.Volume:
     derived_from: cloudify.nodes.Volume
@@ -222,3 +228,9 @@ node_types:
               default: 30
         delete:
           implementation: occi.cloudify_occi_plugin.tasks.delete
+          inputs:
+            delete_retry_interval:
+              description: >
+                Polling interval until the volume is deleted
+              type: integer
+              default: 30

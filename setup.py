@@ -3,7 +3,7 @@ import setuptools
 setuptools.setup(
     zip_safe=False,
     name='cloudify-occi-plugin',
-    version='0.0.14',
+    version='0.0.15',
     author='Vlastimil Holer',
     author_email='holer@ics.muni.cz',
     packages=['cloudify_occi_plugin',
