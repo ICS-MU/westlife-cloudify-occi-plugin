@@ -1,4 +1,6 @@
 # import cloudify
+import random
+import string
 
 from cloudify import ctx
 # from cloudify.exceptions import NonRecoverableError, RecoverableError
@@ -141,7 +143,8 @@ def create_volume(client, **kwargs):
     size = ctx.node.properties.get('size', dict())
     name = ctx.node.properties.get('name')
     if not name:
-        name = 'cfy-disk-%s' % ctx.instance.id
+        rand = ''.join(random.sample((string.letters+string.digits)*6, 6))
+        name = 'cfy-disk-%s-%s' % (ctx.instance.id, rand)
     availability_zone = ctx.node.properties.get('availability_zone')
 
     url = client.create_volume(name, size, availability_zone)
