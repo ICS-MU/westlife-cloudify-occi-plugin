@@ -119,8 +119,25 @@ def stop(client, **kwargs):
 @with_client
 def delete(client, **kwargs):
     ctx.logger.info('Deleting')
+
+    cln = ctx.instance.runtime_properties.get('occi_cleanup_urls')
     url = ctx.instance.runtime_properties.get('occi_resource_url')
+
     if url:
+        # store linked resources for post-delete cleanup
+        if cln is None:
+            cln = []
+
+            try:
+                desc = client.describe(url)
+                for link in desc[0]['links']:
+                    if link['rel'].endswith('#storage'):
+                        cln.append(link['target'])
+            except Exception:
+                pass
+            finally:
+                ctx.instance.runtime_properties['occi_cleanup_urls'] = cln
+
         try:
             client.delete(url)
         except Exception:
@@ -137,7 +154,22 @@ def delete(client, **kwargs):
             else:
                 raise Exception
         except Exception:
-            delete_runtime_properties(ctx)
+            if cln:
+                del ctx.instance.runtime_properties['occi_resource_url']
+
+                return ctx.operation.retry(
+                        message='Waiting for linked resources to delete',
+                        retry_after=kwargs['delete_retry_interval'])
+
+    # cleanup linked resources
+    elif cln:
+        for link in cln:
+            try:
+                client.delete(link)
+            except Exception:
+                pass
+
+    delete_runtime_properties(ctx)
 
 
 @operation
