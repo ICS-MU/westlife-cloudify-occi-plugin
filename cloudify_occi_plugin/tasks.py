@@ -109,14 +109,15 @@ def stop(client, **kwargs):
         state = get_instance_state(ctx, client)
 
     # check again for suspended instance or retry
-    if state not in ['suspended', 'inactive']:
+    if (state not in ['suspended', 'inactive']) and kwargs['wait_finish']:
         return ctx.operation.retry(
-            message='Waiting for server to stop (state: %s)' % (state,))
+            message='Waiting for server to stop (state: %s)' % (state,),
+            retry_after=kwargs['stop_retry_interval'])
 
 
 @operation
 @with_client
-def delete(client, delete_retry_interval=30, **kwargs):
+def delete(client, **kwargs):
     ctx.logger.info('Deleting')
     url = ctx.instance.runtime_properties.get('occi_resource_url')
     if url:
@@ -129,9 +130,12 @@ def delete(client, delete_retry_interval=30, **kwargs):
         try:
             client.describe(url)
 
-            return ctx.operation.retry(
-                message='Waiting for resource to delete',
-                retry_after=delete_retry_interval)
+            if kwargs['wait_finish']:
+                return ctx.operation.retry(
+                        message='Waiting for resource to delete',
+                        retry_after=kwargs['delete_retry_interval'])
+            else:
+                raise Exception
         except Exception:
             delete_runtime_properties(ctx)
 
@@ -158,8 +162,8 @@ def start_volume(client, start_retry_interval, **kwargs):
     state = get_instance_state(ctx, client)
     if (state != 'online'):
         return ctx.operation.retry(
-            message='Waiting for volume to start (state: %s)' % (state,),
-            retry_after=start_retry_interval)
+                message='Waiting for volume to start (state: %s)' % (state,),
+                retry_after=start_retry_interval)
 
 
 @operation
@@ -179,11 +183,11 @@ def attach_volume(client, attach_retry_interval, **kwargs):
 
     if state == 'active':
         ctx.source.instance.runtime_properties['device'] = \
-            desc[0]['attributes']['occi']['storagelink']['deviceid']
+                desc[0]['attributes']['occi']['storagelink']['deviceid']
     else:
         return ctx.operation.retry(
-            message='Waiting for volume to attach (state: %s)' % (state,),
-            retry_after=attach_retry_interval)
+                message='Waiting for volume to attach (state: %s)' % (state,),
+                retry_after=attach_retry_interval)
 
 
 @operation
@@ -198,9 +202,10 @@ def detach_volume(client, detach_retry_interval, **kwargs):
         if state == 'active':
             client.delete(url)
 
-        return ctx.operation.retry(
-            message='Waiting for volume to detach (state: %s)' % (state,),
-            retry_after=detach_retry_interval)
+        if kwargs['wait_finish']:
+            return ctx.operation.retry(
+                message='Waiting for volume to detach (state: %s)' % (state,),
+                retry_after=detach_retry_interval)
     except Exception:
         if 'occi_link_url' in ctx.source.instance.runtime_properties:
             del ctx.source.instance.runtime_properties['occi_link_url']
