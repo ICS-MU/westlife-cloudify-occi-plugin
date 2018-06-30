@@ -206,6 +206,8 @@ def detach_volume(client, detach_retry_interval, **kwargs):
             return ctx.operation.retry(
                 message='Waiting for volume to detach (state: %s)' % (state,),
                 retry_after=detach_retry_interval)
+        else:
+            raise Exception
     except Exception:
         if 'occi_link_url' in ctx.source.instance.runtime_properties:
             del ctx.source.instance.runtime_properties['occi_link_url']
