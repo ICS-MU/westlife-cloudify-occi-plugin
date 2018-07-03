@@ -109,7 +109,8 @@ def stop(client, **kwargs):
         state = get_instance_state(ctx, client)
 
     # check again for suspended instance or retry
-    if (state not in ['suspended', 'inactive']) and kwargs['wait_finish']:
+    if ((state not in ['suspended', 'inactive']) and
+            kwargs.get('wait_finish', True)):
         return ctx.operation.retry(
             message='Waiting for server to stop (state: %s)' % (state,),
             retry_after=kwargs['stop_retry_interval'])
@@ -131,7 +132,8 @@ def delete(client, **kwargs):
             try:
                 desc = client.describe(url)
                 for link in desc[0]['links']:
-                    if link['rel'].endswith('#storage'):
+                    if (link['rel'].endswith('#storage') and
+                            not link['id'].endswith('_disk_0')):
                         cln.append(link['target'])
             except Exception:
                 pass
@@ -147,7 +149,7 @@ def delete(client, **kwargs):
         try:
             client.describe(url)
 
-            if kwargs['wait_finish']:
+            if kwargs.get('wait_finish', True):
                 return ctx.operation.retry(
                         message='Waiting for resource to delete',
                         retry_after=kwargs['delete_retry_interval'])
@@ -225,6 +227,10 @@ def attach_volume(client, attach_retry_interval, **kwargs):
 @operation
 @with_client
 def detach_volume(client, detach_retry_interval, **kwargs):
+    if kwargs.get('skip_action'):
+        ctx.logger.info('Volume detach skipped by configuration')
+        return
+
     ctx.logger.info('Detaching volume')
     url = ctx.source.instance.runtime_properties['occi_link_url']
 
@@ -234,7 +240,7 @@ def detach_volume(client, detach_retry_interval, **kwargs):
         if state == 'active':
             client.delete(url)
 
-        if kwargs['wait_finish']:
+        if kwargs.get('wait_finish', True):
             return ctx.operation.retry(
                 message='Waiting for volume to detach (state: %s)' % (state,),
                 retry_after=detach_retry_interval)

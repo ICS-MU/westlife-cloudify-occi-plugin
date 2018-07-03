@@ -123,6 +123,16 @@ relationships:
                 Polling interval until volum is detached in seconds
               type: integer
               default: 60
+            wait_finish:
+              description: >
+                Wait until volume is sucessfully detached.
+              type: boolean
+              default: true
+            skip_action:
+              description: >
+                Skip this action, don't do anything.
+              type: boolean
+              default: false
   cloudify.occi.relationships.volume_contained_in_server:
     derived_from: cloudify.relationships.contained_in
     target_interfaces:
@@ -148,6 +158,11 @@ relationships:
                 Wait until volume is sucessfully detached.
               type: boolean
               default: true
+            skip_action:
+              description: >
+                Skip this action, don't do anything.
+              type: boolean
+              default: false
 
 node_types:
   cloudify.occi.nodes.Server:
