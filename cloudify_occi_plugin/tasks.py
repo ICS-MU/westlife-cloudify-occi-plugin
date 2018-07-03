@@ -151,8 +151,8 @@ def delete(client, **kwargs):
 
             if kwargs.get('wait_finish', True):
                 return ctx.operation.retry(
-                        message='Waiting for resource to delete',
-                        retry_after=kwargs['delete_retry_interval'])
+                    message='Waiting for resource to delete',
+                    retry_after=kwargs['delete_retry_interval'])
             else:
                 raise Exception
         except Exception:
@@ -160,8 +160,8 @@ def delete(client, **kwargs):
                 del ctx.instance.runtime_properties['occi_resource_url']
 
                 return ctx.operation.retry(
-                        message='Waiting for linked resources to delete',
-                        retry_after=kwargs['delete_retry_interval'])
+                    message='Waiting for linked resources to delete',
+                    retry_after=kwargs['delete_retry_interval'])
 
     # cleanup linked resources
     elif cln:
@@ -205,12 +205,12 @@ def start_volume(client, start_retry_interval, **kwargs):
 def attach_volume(client, attach_retry_interval, **kwargs):
     ctx.logger.info('Attaching volume')
 
-    url = ctx.source.instance.runtime_properties.get('occi_link_url')
+    url = ctx.source.instance.runtime_properties.get('occi_storage_link_url')
     if not url:
         srv_url = ctx.target.instance.runtime_properties['occi_resource_url']
         vol_url = ctx.source.instance.runtime_properties['occi_resource_url']
         url = client.link(vol_url, srv_url)
-        ctx.source.instance.runtime_properties['occi_link_url'] = url
+        ctx.source.instance.runtime_properties['occi_storage_link_url'] = url
 
     desc = client.describe(url)
     state = desc[0]['attributes']['occi']['storagelink']['state']
@@ -229,10 +229,12 @@ def attach_volume(client, attach_retry_interval, **kwargs):
 def detach_volume(client, detach_retry_interval, **kwargs):
     if kwargs.get('skip_action'):
         ctx.logger.info('Volume detach skipped by configuration')
+        del ctx.source.instance.runtime_properties['occi_storage_link_url']
+        del ctx.source.instance.runtime_properties['device']
         return
 
     ctx.logger.info('Detaching volume')
-    url = ctx.source.instance.runtime_properties['occi_link_url']
+    url = ctx.source.instance.runtime_properties['occi_storage_link_url']
 
     try:
         desc = client.describe(url)
@@ -247,7 +249,7 @@ def detach_volume(client, detach_retry_interval, **kwargs):
         else:
             raise Exception
     except Exception:
-        if 'occi_link_url' in ctx.source.instance.runtime_properties:
-            del ctx.source.instance.runtime_properties['occi_link_url']
+        if 'occi_storage_link_url' in ctx.source.instance.runtime_properties:
+            del ctx.source.instance.runtime_properties['occi_storage_link_url']
         if 'device' in ctx.source.instance.runtime_properties:
             del ctx.source.instance.runtime_properties['device']
