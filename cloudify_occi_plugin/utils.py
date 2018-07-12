@@ -7,7 +7,8 @@ RUNTIME_PROPERTIES = [
     'ip', 'networks', 'device',
     'user', 'port', 'password', 'key',
     'occi_resource_id', 'occi_resource_url', 'occi_resource_title',
-    'occi_network_link_url',
+    'occi_storage_link_url', 'occi_network_link_url',
+    'occi_cleanup_urls'
 ]
 
 

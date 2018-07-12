@@ -1,4 +1,6 @@
 # import cloudify
+import random
+import string
 
 from cloudify import ctx
 # from cloudify.exceptions import NonRecoverableError, RecoverableError
@@ -107,21 +109,69 @@ def stop(client, **kwargs):
         state = get_instance_state(ctx, client)
 
     # check again for suspended instance or retry
-    if state not in ['suspended', 'inactive']:
+    if ((state not in ['suspended', 'inactive']) and
+            kwargs.get('wait_finish', True)):
         return ctx.operation.retry(
-            message='Waiting for server to stop (state: %s)' % (state,))
+            message='Waiting for server to stop (state: %s)' % (state,),
+            retry_after=kwargs['stop_retry_interval'])
 
 
 @operation
 @with_client
 def delete(client, **kwargs):
     ctx.logger.info('Deleting')
+
+    cln = ctx.instance.runtime_properties.get('occi_cleanup_urls')
     url = ctx.instance.runtime_properties.get('occi_resource_url')
+
     if url:
+        # store linked resources for post-delete cleanup
+        if cln is None:
+            cln = []
+
+            try:
+                desc = client.describe(url)
+                for link in desc[0]['links']:
+                    if (link['rel'].endswith('#storage') and
+                            not link['id'].endswith('_disk_0')):
+                        cln.append(link['target'])
+            except Exception:
+                pass
+            finally:
+                ctx.instance.runtime_properties['occi_cleanup_urls'] = cln
+
         try:
             client.delete(url)
-        finally:
-            delete_runtime_properties(ctx)
+        except Exception:
+            pass
+
+        # check the resource is deleted
+        try:
+            client.describe(url)
+
+            if kwargs.get('wait_finish', True):
+                return ctx.operation.retry(
+                    message='Waiting for resource to delete',
+                    retry_after=kwargs['delete_retry_interval'])
+            else:
+                raise Exception
+        except Exception:
+            if cln:
+                del ctx.instance.runtime_properties['occi_resource_url']
+
+                return ctx.operation.retry(
+                    message='Waiting for linked resources to delete',
+                    retry_after=kwargs['delete_retry_interval'])
+
+    # cleanup linked resources
+    elif cln:
+        for link in cln:
+            try:
+                client.delete(link)
+            except Exception:
+                pass
+
+    delete_runtime_properties(ctx)
 
 
 @operation
@@ -131,7 +181,8 @@ def create_volume(client, **kwargs):
     size = ctx.node.properties.get('size', dict())
     name = ctx.node.properties.get('name')
     if not name:
-        name = 'cfy-disk-%s' % ctx.instance.id
+        rand = ''.join(random.sample((string.letters+string.digits)*6, 6))
+        name = 'cfy-disk-%s-%s' % (ctx.instance.id, rand)
     availability_zone = ctx.node.properties.get('availability_zone')
 
     url = client.create_volume(name, size, availability_zone)
@@ -145,8 +196,8 @@ def start_volume(client, start_retry_interval, **kwargs):
     state = get_instance_state(ctx, client)
     if (state != 'online'):
         return ctx.operation.retry(
-            message='Waiting for volume to start (state: %s)' % (state,),
-            retry_after=start_retry_interval)
+                message='Waiting for volume to start (state: %s)' % (state,),
+                retry_after=start_retry_interval)
 
 
 @operation
@@ -154,30 +205,36 @@ def start_volume(client, start_retry_interval, **kwargs):
 def attach_volume(client, attach_retry_interval, **kwargs):
     ctx.logger.info('Attaching volume')
 
-    url = ctx.source.instance.runtime_properties.get('occi_link_url')
+    url = ctx.source.instance.runtime_properties.get('occi_storage_link_url')
     if not url:
         srv_url = ctx.target.instance.runtime_properties['occi_resource_url']
         vol_url = ctx.source.instance.runtime_properties['occi_resource_url']
         url = client.link(vol_url, srv_url)
-        ctx.source.instance.runtime_properties['occi_link_url'] = url
+        ctx.source.instance.runtime_properties['occi_storage_link_url'] = url
 
     desc = client.describe(url)
     state = desc[0]['attributes']['occi']['storagelink']['state']
 
     if state == 'active':
         ctx.source.instance.runtime_properties['device'] = \
-            desc[0]['attributes']['occi']['storagelink']['deviceid']
+                desc[0]['attributes']['occi']['storagelink']['deviceid']
     else:
         return ctx.operation.retry(
-            message='Waiting for volume to attach (state: %s)' % (state,),
-            retry_after=attach_retry_interval)
+                message='Waiting for volume to attach (state: %s)' % (state,),
+                retry_after=attach_retry_interval)
 
 
 @operation
 @with_client
 def detach_volume(client, detach_retry_interval, **kwargs):
+    if kwargs.get('skip_action'):
+        ctx.logger.info('Volume detach skipped by configuration')
+        del ctx.source.instance.runtime_properties['occi_storage_link_url']
+        del ctx.source.instance.runtime_properties['device']
+        return
+
     ctx.logger.info('Detaching volume')
-    url = ctx.source.instance.runtime_properties['occi_link_url']
+    url = ctx.source.instance.runtime_properties['occi_storage_link_url']
 
     try:
         desc = client.describe(url)
@@ -185,11 +242,14 @@ def detach_volume(client, detach_retry_interval, **kwargs):
         if state == 'active':
             client.delete(url)
 
-        return ctx.operation.retry(
-            message='Waiting for volume to detach (state: %s)' % (state,),
-            retry_after=detach_retry_interval)
+        if kwargs.get('wait_finish', True):
+            return ctx.operation.retry(
+                message='Waiting for volume to detach (state: %s)' % (state,),
+                retry_after=detach_retry_interval)
+        else:
+            raise Exception
     except Exception:
-        if 'occi_link_url' in ctx.source.instance.runtime_properties:
-            del ctx.source.instance.runtime_properties['occi_link_url']
+        if 'occi_storage_link_url' in ctx.source.instance.runtime_properties:
+            del ctx.source.instance.runtime_properties['occi_storage_link_url']
         if 'device' in ctx.source.instance.runtime_properties:
             del ctx.source.instance.runtime_properties['device']
